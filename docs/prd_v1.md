@@ -17,7 +17,7 @@
 2. [초기 설정 (Setup Wizard)]
    ↓ valet-pilot setup 실행
    - AI 에이전트 닉네임 입력
-   - AI 모델 선택 (anthropic / openai) ※ Post-MVP: google / llama 추가 예정
+   - AI 모델 선택 (anthropic / openai / moonshot) ※ Post-MVP: google / llama 추가 예정
    - 언어 선택 (korean / japanese / english)
    - 사투리 선택 (korean 선택 시: 경상도 / 전라도 / 충청도 / 제주도 / 강원도 / 표준어)
    - 업무 툴 선택 (Redmine 또는 JIRA 중 하나)
@@ -82,7 +82,7 @@
 | ID | 기능명 | 설명 | MVP 필수 이유 | 관련 페이지/모듈 |
 |----|--------|------|-------------|----------------|
 | **F010** | 설정 파일 관리 | 사용자 설정(닉네임, 모델, 언어, 사투리, 관심사, API 키 등)을 로컬 JSON/YAML 파일로 저장 및 로드 | 모든 설정이 재시작 후에도 유지되어야 함 | Setup Wizard, 설정 파일 모듈 |
-| **F011** | AI 모델 선택 및 API 연동 | Anthropic, OpenAI 중 선택한 모델의 API를 통해 자연어 처리 수행. Adapter 패턴으로 추상화하여 Post-MVP에서 Google, Llama 확장 | 다양한 사용자 환경 지원 | AI 에이전트 실행 엔진 |
+| **F011** | AI 모델 선택 및 API 연동 | Anthropic, OpenAI, Moonshot AI 중 선택한 모델의 API를 통해 자연어 처리 수행. Adapter 패턴으로 추상화하여 Post-MVP에서 Google, Llama 확장 | 다양한 사용자 환경 지원 | AI 에이전트 실행 엔진 |
 | **F012** | 사전 요구사항 검증 | `valet-pilot start` 실행 시 macOS 마이크/접근성 권한 상태 점검, 시스템 의존성(SoX 등) 확인 후 미충족 시 안내 메시지 출력 | 권한/의존성 미충족 시 침묵 실패 방지 | 사전 요구사항 검증 모듈 |
 
 ### 3. MVP 이후 기능 (제외)
@@ -152,7 +152,7 @@ Valet Pilot CLI
 | **역할** | 최초 실행 시 또는 설정 변경 시 인터랙티브 CLI 프롬프트를 통해 에이전트 동작에 필요한 모든 설정을 입력받고 로컬 파일로 저장 |
 | **진입 경로** | `valet-pilot setup` 직접 실행, 또는 `valet-pilot start` 실행 시 설정 파일이 없으면 자동 진입 |
 | **사용자 행동** | 프롬프트 질문에 순서대로 응답하여 닉네임, AI 모델 및 API 키, 언어, 사투리, 관심사, 연동 서비스 인증 정보 입력 |
-| **주요 기능** | - AI 에이전트 닉네임 입력 (예: "자비스", "버디")<br>- AI 모델 선택: `anthropic` / `openai` 및 해당 API 키 입력 (Post-MVP: `google` / `llama` 확장 예정, Adapter 패턴으로 추상화)<br>- 언어 선택: `korean` / `japanese` / `english`<br>- 사투리 선택 (korean 선택 시): 경상도 / 전라도 / 충청도 / 제주도 / 강원도 / 표준어<br>- **업무 툴 선택 (단일 선택)**: `Redmine` 또는 `JIRA` 중 하나<br>&nbsp;&nbsp;&nbsp;→ Redmine 선택 시: 서버 URL + API Key 입력<br>&nbsp;&nbsp;&nbsp;→ JIRA 선택 시: 서버 URL + 이메일 + API Token 입력 (Cloud), 또는 서버 URL + Personal Access Token 입력 (Server/Data Center)<br>- 관심사 선택 (다중 선택): 날씨 / 주식 / 사용자 지정<br>- 관심사별 인증 정보 입력 (주식 티커 목록 등)<br>- 설정 완료 후 `~/.valet-pilot/config.json`에 저장 |
+| **주요 기능** | - AI 에이전트 닉네임 입력 (예: "자비스", "버디")<br>- AI 모델 선택: `anthropic` / `openai` / `moonshot` 및 해당 API 키 입력 (Post-MVP: `google` / `llama` 확장 예정, Adapter 패턴으로 추상화)<br>- 언어 선택: `korean` / `japanese` / `english`<br>- 사투리 선택 (korean 선택 시): 경상도 / 전라도 / 충청도 / 제주도 / 강원도 / 표준어<br>- **업무 툴 선택 (단일 선택)**: `Redmine` 또는 `JIRA` 중 하나<br>&nbsp;&nbsp;&nbsp;→ Redmine 선택 시: 서버 URL + API Key 입력<br>&nbsp;&nbsp;&nbsp;→ JIRA 선택 시: 서버 URL + 이메일 + API Token 입력 (Cloud), 또는 서버 URL + Personal Access Token 입력 (Server/Data Center)<br>- 관심사 선택 (다중 선택): 날씨 / 주식 / 사용자 지정<br>- 관심사별 인증 정보 입력 (주식 티커 목록 등)<br>- 설정 완료 후 `~/.valet-pilot/config.json`에 저장 |
 | **다음 이동** | 설정 완료 → "설정이 완료되었습니다. `valet-pilot start`로 시작하세요." 출력 후 종료 |
 
 ---
@@ -262,7 +262,7 @@ Valet Pilot CLI
 | 필드 | 설명 | 타입/관계 |
 |------|------|----------|
 | agent_nickname | AI 에이전트 닉네임 | string |
-| ai_model | 선택된 AI 모델 | enum: anthropic / openai (Post-MVP: google / llama 확장) |
+| ai_model | 선택된 AI 모델 | enum: anthropic / openai / moonshot (Post-MVP: google / llama 확장) |
 | ai_api_key | AI 모델 API 키 (암호화 저장) | string (encrypted) |
 | language | 응답 언어 | enum: korean / japanese / english |
 | dialect | 사투리 (language=korean 시) | enum: standard / gyeong-sang / jeolla / chung-cheong / jeju / gang-won |
@@ -312,7 +312,7 @@ Valet Pilot CLI
 
 ### 런타임 및 언어
 
-- **Node.js 22 LTS** - 비동기 I/O 처리, CLI 도구 생성에 최적
+- **Node.js 24 LTS** - 비동기 I/O 처리, CLI 도구 생성에 최적
 - **TypeScript 5.6+** - 타입 안전성 보장, 모듈 간 인터페이스 명확화
 
 ### CLI 프레임워크
@@ -328,7 +328,7 @@ Valet Pilot CLI
 - **`nodejs-whisper`** (선택, 오프라인 모드) - whisper.cpp N-API 바인딩, Python 의존성 없이 로컬 STT 실행
   - Setup에서 오프라인 모드 활성화 시 사용
   - macOS 마이크 캡처를 위해 `node-record-lpcm16` + SoX 필요 (`brew install sox`)
-  - **주의**: v0.3.0 pre-release 상태이며 단일 관리자 패키지. Node.js 22 공식 호환 여부 사전 검증 필요. 검증 실패 시 `whisper.cpp` 바이너리를 `child_process.spawn`으로 직접 실행하는 방식으로 대체
+  - **주의**: v0.3.0 pre-release 상태이며 단일 관리자 패키지. Node.js 24 공식 호환 여부 사전 검증 필요. 검증 실패 시 `whisper.cpp` 바이너리를 `child_process.spawn`으로 직접 실행하는 방식으로 대체
   - ~~`faster-whisper`~~ (Python 전용 라이브러리, Node.js 브리지 아키텍처 미지원, npm 단일 설치로 Python 의존성 해결 불가 — 제외)
   - ~~OpenAI Whisper API 단독 기본 사용~~ (파일 업로드 방식, 스트리밍 미지원, 1~5초 지연 — 제외)
 
@@ -342,6 +342,7 @@ Valet Pilot CLI
 
 - **Anthropic SDK (`@anthropic-ai/sdk`)** - Claude 모델 (claude-3-5-sonnet 등)
 - **OpenAI SDK (`openai`)** - GPT-4o 등
+- **Moonshot AI(Default)** - Kimi 모델 (kimi-k2.5 등). OpenAI 호환 API 형식 제공으로 OpenAI SDK에 `baseURL: "https://api.moonshot.cn/v1"` 설정하여 연동
 - Adapter 패턴으로 AI 모델 인터페이스를 추상화하여 Post-MVP에서 확장 용이하게 설계
   - ~~Google AI SDK (`@google/generative-ai`)~~ — Post-MVP 확장 예정
   - ~~Ollama (로컬 Llama 실행 환경)~~ — Post-MVP 확장 예정
@@ -357,7 +358,7 @@ Valet Pilot CLI
 - **`osascript`** (쉘 호출) - JXA 미지원 시나리오에서 AppleScript 직접 실행 보조 수단
 - **앱별 CLI 인터페이스 활용**: VSCode(`code` CLI), IntelliJ(`idea` CLI)로 파일 열기/프로젝트 실행
   - ~~`@nut-tree/nut-js`~~ (npm public registry에서 제거, 유료 private registry 전환으로 일반 배포 불가 — 제외)
-  - ~~`robotjs`~~ (개발 중단, Node.js 22 바이너리 호환 불가 — 제외)
+  - ~~`robotjs`~~ (개발 중단, Node.js 24 바이너리 호환 불가 — 제외)
 - **`execa`** - 쉘 명령 및 터미널 앱 실행
 
 ### 외부 서비스 연동
@@ -371,7 +372,7 @@ Valet Pilot CLI
 ### 설정 저장
 
 - **`zod`** + Node.js `fs` - `~/.valet-pilot/config.json` 직접 관리 및 스키마 검증. ~~`conf`~~ (Electron 앱 중심 설계, CLI 전용으로 불필요한 의존성 — 제외)
-- **`keytar3`** - macOS Keychain 연동으로 API 키 안전 저장. ~~`keytar`~~ (2022년 12월 공식 아카이브, Node.js 22 네이티브 addon 호환 미검증 — 제외). `keytar3`도 호환 문제 발생 시 Node.js 내장 `crypto` 모듈의 AES-256-GCM으로 API 키 암호화 후 config.json 저장으로 대체
+- **`keytar3`** - macOS Keychain 연동으로 API 키 안전 저장. ~~`keytar`~~ (2022년 12월 공식 아카이브, Node.js 24 네이티브 addon 호환 미검증 — 제외). `keytar3`도 호환 문제 발생 시 Node.js 내장 `crypto` 모듈의 AES-256-GCM으로 API 키 암호화 후 config.json 저장으로 대체
 
 ### 패키지 배포
 
