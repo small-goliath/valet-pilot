@@ -13,16 +13,14 @@ export async function startCommand(): Promise<void> {
   const config = loadConfig();
   console.log(`\n🤵 ${config.agent_nickname}, 준비 중입니다...\n`);
 
-  // Preflight 검증
   const { runPreflight } = await import('../modules/preflight/index.js');
   await runPreflight(config);
 
   const ai = createAIAdapter(config);
 
-  console.log(`🎙️  음성 대기 중... ("${config.agent_nickname}, 시작하자"로 브리핑을 시작하세요.)`);
+  console.log(`🎙️  대기 중... (박수 두 번으로 브리핑을 시작하세요.)`);
   console.log('    종료하려면 Ctrl+C 또는 "종료"라고 말씀하세요.\n');
 
-  // 메인 음성 루프
   while (true) {
     try {
       const event = await listenOnce(config);
@@ -35,8 +33,17 @@ export async function startCommand(): Promise<void> {
       }
 
       if (event.type === 'trigger') {
+        // A: 트리거 감지 즉시 관심사 수집 시작
+        // STT 인식 → 여기까지 오는 동안 이미 ~5-8초 경과.
+        // BGM + 환영 인사(~30-40초) 동안 병렬로 수집 완료 가능.
+        const { collectInterests } = await import('../modules/interests/index.js');
+        const interestPromise = collectInterests(config, ai).catch((err) => {
+          console.warn(`  ⚠️  관심사 수집 오류: ${err instanceof Error ? err.message : err}`);
+          return [];
+        });
+
         const { runOpeningBriefing } = await import('../modules/briefing/index.js');
-        await runOpeningBriefing(config);
+        await runOpeningBriefing(config, ai, interestPromise);
         continue;
       }
 
