@@ -56,7 +56,7 @@ class MoonshotAdapter implements AIAdapter {
   constructor(apiKey: string) {
     this.client = new OpenAI({
       apiKey,
-      baseURL: 'https://api.moonshot.cn/v1',
+      baseURL: 'https://api.moonshot.ai/v1',
     });
   }
 
@@ -68,7 +68,7 @@ class MoonshotAdapter implements AIAdapter {
     messages.push({ role: 'user', content: userPrompt });
 
     const res = await this.client.chat.completions.create({
-      model: 'moonshot-v1-8k',
+      model: 'kimi-k2.5',
       messages,
     });
 
