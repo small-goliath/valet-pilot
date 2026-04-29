@@ -103,7 +103,7 @@ function spawnElectron(): void {
     // electron 패키지의 바이너리 경로 resolve
     const req = createRequire(import.meta.url);
     const electronPath = req('electron') as string;
-    const mainPath = resolve(new URL('../ui/main.js', import.meta.url).pathname);
+    const mainPath = resolve(new URL('../main/main.js', import.meta.url).pathname);
 
     if (!existsSync(mainPath)) {
       console.warn(chalk.yellow('Electron main.js 가 빌드되지 않았습니다. --no-ui 모드로 실행됩니다.'));

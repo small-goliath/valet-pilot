@@ -28,9 +28,11 @@ const RETRY_INTERVAL_MS = 100
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 640,
-    resizable: false,
+    width: 520,
+    height: 860,
+    minWidth: 400,
+    minHeight: 600,
+    resizable: true,
     alwaysOnTop: true,
     frame: false,
     transparent: true,
