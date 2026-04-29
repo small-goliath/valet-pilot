@@ -9,7 +9,7 @@ import { createConnection, type Socket } from 'node:net'
 import { createInterface } from 'node:readline'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 
 // ── 경로 ─────────────────────────────────────────────────────────
 
@@ -33,6 +33,7 @@ function createWindow(): void {
     minWidth: 400,
     minHeight: 600,
     resizable: true,
+    fullscreen: true,
     alwaysOnTop: true,
     frame: false,
     transparent: true,
@@ -100,6 +101,17 @@ function connectToSocket(): void {
   })
 }
 
+// ── UI PID 파일 정리 ──────────────────────────────────────────────
+
+function cleanupUiPid(): void {
+  try {
+    const uiPidFile = join(homedir(), '.valet-pilot', 'ui.pid')
+    if (existsSync(uiPidFile)) unlinkSync(uiPidFile)
+  } catch {
+    // 무시
+  }
+}
+
 // ── 데몬 종료 ─────────────────────────────────────────────────────
 
 function shutdownDaemon(): void {
@@ -131,6 +143,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   shutdownDaemon()
+  cleanupUiPid()
   app.quit()
 })
 
