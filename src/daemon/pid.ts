@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { VALET_HOME } from '../utils/dirs.js';
 
 const PID_FILE = join(VALET_HOME, 'daemon.pid');
+const UI_PID_FILE = join(VALET_HOME, 'ui.pid');
 
 /**
  * 현재 프로세스의 PID를 파일에 저장합니다.
@@ -43,6 +44,25 @@ export async function removePid(): Promise<void> {
   } catch {
     // 파일이 없으면 무시
   }
+}
+
+export async function writeUiPid(pid: number): Promise<void> {
+  await writeFile(UI_PID_FILE, String(pid), 'utf-8');
+}
+
+export async function readUiPid(): Promise<number | null> {
+  if (!existsSync(UI_PID_FILE)) return null;
+  try {
+    const content = await readFile(UI_PID_FILE, 'utf-8');
+    const pid = parseInt(content.trim(), 10);
+    return isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
+
+export async function removeUiPid(): Promise<void> {
+  try { await unlink(UI_PID_FILE); } catch { /* 무시 */ }
 }
 
 /**

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { readPid, removePid, isRunning } from '../daemon/pid.js';
+import { readPid, removePid, isRunning, readUiPid, removeUiPid } from '../daemon/pid.js';
 
 export interface StopOptions {
   force?: boolean;
@@ -7,6 +7,23 @@ export interface StopOptions {
 
 const WAIT_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 200;
+
+/**
+ * Electron UI 프로세스를 종료합니다.
+ */
+async function killUi(): Promise<void> {
+  const uiPid = await readUiPid();
+  if (uiPid === null) return;
+  try {
+    if (isRunning(uiPid)) {
+      process.kill(uiPid, 'SIGTERM');
+    }
+  } catch {
+    // 이미 종료된 경우 무시
+  } finally {
+    await removeUiPid();
+  }
+}
 
 /**
  * 프로세스가 종료될 때까지 최대 WAIT_TIMEOUT_MS 동안 대기합니다.
@@ -50,6 +67,7 @@ export async function runStop(options: StopOptions = {}): Promise<void> {
     if (exited) {
       process.stdout.write('\n');
       await removePid();
+      await killUi();
       console.log(chalk.green('Valet Pilot이 종료되었습니다.') + chalk.dim(` (PID: ${pid})`));
       return;
     }
@@ -60,6 +78,7 @@ export async function runStop(options: StopOptions = {}): Promise<void> {
       await waitForExit(pid);
       process.stdout.write('\n');
       await removePid();
+      await killUi();
       console.log(chalk.green('Valet Pilot을 강제 종료했습니다.') + chalk.dim(` (PID: ${pid})`));
     } else {
       process.stdout.write('\n');

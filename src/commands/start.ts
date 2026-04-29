@@ -5,7 +5,7 @@ import { ensureValetDirs } from '../utils/dirs.js';
 import { VALET_DIRS } from '../utils/dirs.js';
 import { Daemon } from '../daemon/daemon.js';
 import { uiServer } from '../uiserver/server.js';
-import { readPid, writePid, isRunning } from '../daemon/pid.js';
+import { readPid, writePid, isRunning, writeUiPid, removeUiPid } from '../daemon/pid.js';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 
@@ -84,7 +84,7 @@ export async function runStart(options: StartOptions = {}): Promise<void> {
 
     // 3. Electron UI 창 실행 (UIServer 준비 완료 후)
     if (useUi && uiServer.isActive()) {
-      spawnElectron();
+      await spawnElectron();
     }
 
     console.log(chalk.green('Valet Pilot이 시작되었습니다.'));
@@ -98,7 +98,7 @@ export async function runStart(options: StartOptions = {}): Promise<void> {
 
 // ── Electron spawn 헬퍼 ───────────────────────────────────────────
 
-function spawnElectron(): void {
+async function spawnElectron(): Promise<void> {
   try {
     // electron 패키지의 바이너리 경로 resolve
     const req = createRequire(import.meta.url);
@@ -117,6 +117,9 @@ function spawnElectron(): void {
     });
 
     child.unref();
+    if (child.pid) {
+      await writeUiPid(child.pid);
+    }
     console.log(chalk.dim(`Electron UI 시작됨 (PID: ${child.pid})`));
   } catch {
     console.warn(chalk.yellow('Electron을 찾을 수 없습니다. UI 없이 계속 실행됩니다.'));
