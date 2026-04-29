@@ -76,6 +76,10 @@ function connectToSocket(): void {
     rl.on('line', (line) => {
       try {
         const event = JSON.parse(line)
+        if (event.type === 'shutdown') {
+          app.quit()
+          return
+        }
         mainWindow?.webContents.send('ui-event', event)
       } catch {
         // 파싱 오류 무시

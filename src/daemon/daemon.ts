@@ -100,6 +100,11 @@ export class Daemon {
     // PID 파일 삭제
     await removePid();
 
+    // Electron에 종료 신호 전송 후 소켓 닫기
+    uiServer.emit('shutdown', '');
+    await new Promise((r) => setTimeout(r, 100)); // 전송 대기
+    uiServer.stop();
+
     console.log('[Daemon] 종료 완료');
   }
 

@@ -15,7 +15,8 @@ export type UIEventType =
   | 'state-change'
   | 'ai-text'
   | 'user-text'
-  | 'user-text-final';
+  | 'user-text-final'
+  | 'shutdown';
 
 export type UIState =
   | 'idle'
