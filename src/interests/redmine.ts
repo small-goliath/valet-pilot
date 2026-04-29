@@ -97,9 +97,12 @@ export class RedmineFetcher implements InterestFetcher {
     const fetchedAt = new Date();
 
     try {
-      // API 키: config의 api_key 우선, 없으면 Keychain에서 조회
+      // API 키: config의 api_key 우선 (플레이스홀더 ${...} 는 무시), 없으면 Keychain에서 조회
+      const rawKey = this.interest.api_key;
       const apiKey =
-        this.interest.api_key ?? (await getSecret('valet-pilot', 'redmine-api-key'));
+        (rawKey && !rawKey.startsWith('${'))
+          ? rawKey
+          : (await getSecret('valet-pilot', 'redmine-api-key'));
 
       if (!apiKey) {
         return {
