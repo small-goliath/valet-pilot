@@ -1,6 +1,7 @@
 // ────────────────────────────────────────────────────────────────
 //  Valet Pilot — OpenWeatherMap 날씨 관심사 Fetcher
-//  GET https://api.openweathermap.org/data/2.5/weather
+//  Geocoding API(geo/1.0/direct) → lat/lon → Current Weather(data/2.5/weather)
+//  q 파라미터(Deprecated)는 fallback 용도로만 사용합니다.
 // ────────────────────────────────────────────────────────────────
 
 import axios from 'axios';
@@ -11,6 +12,13 @@ import type { InterestFetcher, InterestReport } from '../types/interest.js';
 import type { Interest, AgentConfig } from '../types/config.js';
 
 // ── OpenWeatherMap API 응답 타입 ──────────────────────────────────
+
+interface OWMGeoResult {
+  name: string;
+  lat: number;
+  lon: number;
+  country: string;
+}
 
 interface OWMWeatherDesc {
   description: string;
@@ -34,7 +42,47 @@ interface OWMResponse {
   name: string;
 }
 
-// ── 브리핑 텍스트 생성 ────────────────────────────────────────────
+// ── 한글 도시명 → 영문 변환 테이블 ──────────────────────────────
+
+const KOREAN_CITY_MAP: Record<string, string> = {
+  서울: 'Seoul',
+  부산: 'Busan',
+  인천: 'Incheon',
+  대구: 'Daegu',
+  대전: 'Daejeon',
+  광주: 'Gwangju',
+  울산: 'Ulsan',
+  수원: 'Suwon',
+  창원: 'Changwon',
+  고양: 'Goyang',
+  용인: 'Yongin',
+  성남: 'Seongnam',
+  청주: 'Cheongju',
+  전주: 'Jeonju',
+  천안: 'Cheonan',
+  안산: 'Ansan',
+  안양: 'Anyang',
+  남양주: 'Namyangju',
+  화성: 'Hwaseong',
+  평택: 'Pyeongtaek',
+  제주: 'Jeju',
+  춘천: 'Chuncheon',
+  원주: 'Wonju',
+  강릉: 'Gangneung',
+  포항: 'Pohang',
+  경주: 'Gyeongju',
+  진주: 'Jinju',
+  여수: 'Yeosu',
+  순천: 'Suncheon',
+  목포: 'Mokpo',
+};
+
+/** 한글 도시명이 있으면 영문으로 변환, 없으면 원본 반환 */
+function normalizeLocation(location: string): string {
+  return KOREAN_CITY_MAP[location.trim()] ?? location;
+}
+
+// ── 브리핑 텍스트 생성 (fallback) ────────────────────────────────
 
 function buildSummary(location: string, data: OWMResponse): string {
   const desc = data.weather[0]?.description ?? '알 수 없음';
@@ -53,10 +101,6 @@ function buildSummary(location: string, data: OWMResponse): string {
 
 // ── AI 자연어 요약 생성 ──────────────────────────────────────────
 
-/**
- * AI 모델을 사용해 날씨 데이터를 자연스러운 한국어 브리핑으로 변환합니다.
- * 실패 시 Error를 throw합니다 (호출부에서 catch → buildSummary fallback).
- */
 async function generateNaturalSummary(
   location: string,
   data: OWMResponse,
@@ -76,8 +120,9 @@ async function generateNaturalSummary(
     {
       role: 'system',
       content:
-        '당신은 개인 비서입니다. 날씨 데이터를 분석해서 오늘의 날씨를 주인님께 보고하는 정중한 존댓말로 브리핑해주세요.\n' +
+        '당신은 개인 비서입니다. 날씨 데이터를 분석해서 오늘의 날씨를 주인님께 보고하는 정중한 한국어 존댓말로 브리핑해주세요.\n' +
         '규칙:\n' +
+        '- 반드시 한국어로만 답변하세요\n' +
         '- TTS로 읽히는 텍스트이므로 특수문자(°, %, * 등) 없이 자연스러운 문장으로 작성\n' +
         '- 단순 수치 나열이 아니라 오늘 날씨가 어떤지, 어떻게 준비하면 좋을지 조언 포함\n' +
         '- 전체 2~3문장 이내로 간결하게\n' +
@@ -85,7 +130,7 @@ async function generateNaturalSummary(
     },
     {
       role: 'user',
-      content: `다음 날씨 데이터를 브리핑해 주세요:\n${weatherInfo}`,
+      content: `다음 날씨 데이터를 한국어로 브리핑해 주세요:\n${weatherInfo}`,
     },
   ]);
 
@@ -94,9 +139,12 @@ async function generateNaturalSummary(
   return text;
 }
 
-// ────────────────────────────────────────────────────────────────
+// ── API 엔드포인트 ────────────────────────────────────────────────
 
-const OWM_API_URL = 'https://api.openweathermap.org/data/2.5/weather';
+const GEO_API_URL = 'https://api.openweathermap.org/geo/1.0/direct';
+const WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather';
+
+// ────────────────────────────────────────────────────────────────
 
 export class WeatherFetcher implements InterestFetcher {
   private readonly interest: Interest;
@@ -124,23 +172,40 @@ export class WeatherFetcher implements InterestFetcher {
         };
       }
 
-      // 위치: interest.location 우선, 없으면 interest.url, 기본값 'Seoul'
-      const location = this.interest.location ?? this.interest.url ?? 'Seoul';
+      const rawLocation = this.interest.location ?? this.interest.url ?? 'Seoul';
+      const location = normalizeLocation(rawLocation);
 
-      const response = await axios.get<OWMResponse>(OWM_API_URL, {
-        params: {
-          q: location,
-          appid: apiKey,
-          lang: 'ko',
-          units: 'metric',
-        },
+      // 1단계: Geocoding API로 lat/lon 조회
+      const geoResponse = await axios.get<OWMGeoResult[]>(GEO_API_URL, {
+        params: { q: location, appid: apiKey, limit: 1 },
         timeout: 10_000,
       });
 
-      const cityName = response.data.name || location;
+      let weatherData: OWMResponse;
+      let cityName: string;
+
+      if (geoResponse.data.length > 0) {
+        // 2단계: 좌표로 날씨 조회 (권장 방식)
+        const { lat, lon, name: geoName } = geoResponse.data[0];
+        const weatherResponse = await axios.get<OWMResponse>(WEATHER_API_URL, {
+          params: { lat, lon, appid: apiKey, lang: 'ko', units: 'metric' },
+          timeout: 10_000,
+        });
+        weatherData = weatherResponse.data;
+        cityName = weatherData.name || geoName || location;
+      } else {
+        // fallback: q 파라미터 직접 사용 (Deprecated)
+        const weatherResponse = await axios.get<OWMResponse>(WEATHER_API_URL, {
+          params: { q: location, appid: apiKey, lang: 'ko', units: 'metric' },
+          timeout: 10_000,
+        });
+        weatherData = weatherResponse.data;
+        cityName = weatherData.name || location;
+      }
+
       const config = await loadConfig();
-      const summary = await generateNaturalSummary(cityName, response.data, config.agent)
-        .catch(() => buildSummary(cityName, response.data));
+      const summary = await generateNaturalSummary(cityName, weatherData, config.agent)
+        .catch(() => buildSummary(cityName, weatherData));
 
       return { type: 'weather', name, summary, fetchedAt };
     } catch (err) {
