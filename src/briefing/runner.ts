@@ -4,15 +4,14 @@
 //  순서대로 재생합니다. 모든 오디오는 캐시에서만 가져옵니다.
 // ────────────────────────────────────────────────────────────────
 
-import { existsSync } from 'node:fs';
 import chalk from 'chalk';
-import { loadConfig } from '../config/manager.js';
+import { existsSync } from 'node:fs';
 import { briefingCache } from '../cache/briefing.js';
+import { loadConfig } from '../config/manager.js';
 import { InterestRegistry } from '../interests/registry.js';
 import { ttsManager } from '../tts/manager.js';
 import * as player from '../tts/player.js';
-import type { BgmConfig } from '../types/config.js';
-import type { Interest } from '../types/config.js';
+import type { BgmConfig, Interest } from '../types/config.js';
 
 export interface BriefingRunOptions {
   dry?: boolean;    // true: 오디오 재생 없이 텍스트만 출력
@@ -77,7 +76,7 @@ export class BriefingRunner {
   private async _runPipeline(): Promise<void> {
     const config = await loadConfig();
     const { bgm } = config;
-    const nickname = config.agent.nickname;
+    const userName = config.agent.user_name;
     const interests = config.interests;
 
     // BGM 재생 시작 시각 (타이밍 기준점)
@@ -93,7 +92,7 @@ export class BriefingRunner {
       if (this._opts.dry) {
         console.log(chalk.dim(`[BGM] ${bgm.file} 재생 시작`));
       } else {
-        bgmPromise = player.play(bgm.file).catch(() => {});
+        bgmPromise = player.playBgmDucked(bgm.file, bgm.report_start, 0.35, 1.5).catch(() => {});
       }
     } else if (!bgm.file || !existsSync(bgm.file)) {
       if (!this._opts.dry) {
@@ -108,7 +107,7 @@ export class BriefingRunner {
     }
 
     // 2. 환영 인사 TTS (greeting_end 이전)
-    await this._playGreeting(nickname, bgm, bgmStartedAt);
+    await this._playGreeting(userName, bgm, bgmStartedAt);
 
     // 3. 힘찬 선언 TTS (shout_start ~ shout_end)
     await this._playShout(bgm, bgmStartedAt);
@@ -124,11 +123,11 @@ export class BriefingRunner {
 
       if (totalElapsed < maxMs) {
         const remaining = maxMs - totalElapsed;
-        player.stop();
+        player.stopBgm();
         void bgmPromise;
-        await player.playWithFadeOut(bgm.file, remaining).catch(() => {});
+        await player.playBgmWithFadeOut(bgm.file, remaining).catch(() => {});
       } else {
-        player.stop();
+        player.stopBgm();
       }
     }
   }
@@ -136,11 +135,11 @@ export class BriefingRunner {
   // ── 환영 인사 ────────────────────────────────────────────────────
 
   private async _playGreeting(
-    nickname: string,
+    userName: string,
     bgm: BgmConfig,
     bgmStartedAt: number,
   ): Promise<void> {
-    const greetingText = `안녕하세요 ${nickname}님, 오늘도 힘찬 하루 시작해봅시다!`;
+    const greetingText = `안녕하세요 ${userName}, 오늘도 힘찬 하루 시작해봅시다!`;
     const greetingDeadlineMs = bgm.greeting_end * 1000;
 
     // 캐시된 TTS 오디오가 있으면 직접 재생, 없으면 speak()

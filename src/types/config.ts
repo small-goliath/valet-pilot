@@ -4,8 +4,10 @@
 
 /** AI 에이전트 설정 */
 export interface AgentConfig {
-  /** 호출 닉네임 (예: "자비스") */
+  /** AI 에이전트 이름 (예: "자비스") */
   nickname: string;
+  /** AI가 사용자를 부르는 호칭 (예: "대표님", "철수") */
+  user_name: string;
   /** 기본 AI 모델 */
   model: 'kimi-k2.5' | 'claude' | 'gpt' | 'gemini' | 'llama';
   /** 응답 언어 */

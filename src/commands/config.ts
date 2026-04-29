@@ -142,8 +142,13 @@ async function configureAgent(config: ValetConfig): Promise<void> {
   console.log(chalk.bold('\nAI 에이전트 설정\n'));
 
   config.agent.nickname = await input({
-    message: '에이전트 닉네임:',
+    message: 'AI 에이전트 이름:',
     default: config.agent.nickname,
+  });
+
+  config.agent.user_name = await input({
+    message: 'AI가 사용자를 부를 호칭:',
+    default: config.agent.user_name,
   });
 
   config.agent.model = await select({

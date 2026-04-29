@@ -39,10 +39,16 @@ export async function runInit(options: InitOptions = {}): Promise<void> {
     // ── 현재 config 로드 (이미 있으면 기본값으로 채워진 값을 사용) ──
     const config: ValetConfig = await loadConfig();
 
-    // ── 1. 닉네임 ─────────────────────────────────────────────
+    // ── 1. AI 에이전트 이름 ───────────────────────────────────
     config.agent.nickname = await input({
-      message: 'AI 에이전트 닉네임을 입력하세요:',
+      message: 'AI 에이전트 이름을 입력하세요 (AI가 스스로를 부르는 이름):',
       default: config.agent.nickname,
+    });
+
+    // ── 1-1. 사용자 호칭 ──────────────────────────────────────
+    config.agent.user_name = await input({
+      message: 'AI가 사용자를 부를 호칭을 입력하세요 (예: 대표님, 철수):',
+      default: config.agent.user_name,
     });
 
     // ── 2. AI 모델 선택 ───────────────────────────────────────

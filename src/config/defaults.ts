@@ -7,6 +7,7 @@ import type { ValetConfig } from '../types/config.js';
 export const DEFAULT_CONFIG: ValetConfig = {
   agent: {
     nickname: '자비스',
+    user_name: '주인님',
     model: 'kimi-k2.5',
     language: 'korean',
     dialect: undefined,

@@ -62,6 +62,7 @@ export function validateConfig(config: Partial<ValetConfig>): string[] {
     errors.push('agent 섹션이 없습니다.');
   } else {
     if (!config.agent.nickname) errors.push('agent.nickname 이 비어 있습니다.');
+    if (!config.agent.user_name) errors.push('agent.user_name 이 비어 있습니다.');
     if (!config.agent.model) errors.push('agent.model 이 설정되지 않았습니다.');
     if (!config.agent.language) errors.push('agent.language 가 설정되지 않았습니다.');
     if (!config.agent.voice) errors.push('agent.voice 가 설정되지 않았습니다.');
