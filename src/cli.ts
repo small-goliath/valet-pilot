@@ -30,8 +30,9 @@ program
   .description('Valet Pilot 데몬 시작')
   .option('-c, --config <path>', '설정 파일 경로')
   .option('-d, --daemon', '백그라운드 데몬 모드로 시작')
+  .option('--no-ui', 'UI 창 없이 CLI 전용 모드로 시작')
   .action(async (options) => {
-    await runStart(options);
+    await runStart({ ...options, noUi: !options.ui });
   });
 
 // valet-pilot stop

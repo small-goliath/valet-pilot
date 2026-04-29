@@ -4,6 +4,7 @@
 //  순서대로 재생합니다. 모든 오디오는 캐시에서만 가져옵니다.
 // ────────────────────────────────────────────────────────────────
 
+import { EventEmitter } from 'node:events';
 import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { briefingCache } from '../cache/briefing.js';
@@ -26,7 +27,7 @@ const BGM_START_GRACE_MS = 300;
 
 // ── BriefingRunner ───────────────────────────────────────────────
 
-export class BriefingRunner {
+export class BriefingRunner extends EventEmitter {
   private _isRunning = false;
   private _opts: BriefingRunOptions = {};
 
@@ -52,12 +53,14 @@ export class BriefingRunner {
     }
     this._isRunning = true;
     this._opts = opts;
+    this.emit('start');
 
     try {
       await this._runPipeline();
     } finally {
       this._isRunning = false;
       this._opts = {};
+      this.emit('end');
     }
   }
 

@@ -11,6 +11,7 @@ import { TriggerManager } from '../trigger/manager.js';
 import { BriefingRunner } from '../briefing/runner.js';
 import { SessionManager } from '../session/manager.js';
 import { writePid, removePid } from './pid.js';
+import { uiServer } from '../uiserver/server.js';
 import type { TriggerEvent } from '../types/trigger.js';
 
 // ── Daemon ────────────────────────────────────────────────────────
@@ -63,6 +64,9 @@ export class Daemon {
 
     // 6. PID 파일 저장
     await writePid(process.pid);
+
+    // 7. UI 이벤트 훅 등록
+    this.registerUiEventHooks();
 
     console.log(`[Daemon] 시작됨 (PID: ${process.pid})`);
   }
@@ -135,6 +139,55 @@ export class Daemon {
       console.warn(chalk.yellow(`[Daemon] 트리거 초기화 경고: ${err.message}`));
       console.warn(chalk.dim('  해당 트리거는 비활성화되고 나머지 트리거로 계속 실행됩니다.'));
     });
+  }
+
+  // ── 내부: UI 이벤트 훅 ────────────────────────────────────────
+
+  /**
+   * TtsManager / SttManager / BriefingRunner 이벤트를 구독하여
+   * UIServer를 통해 Electron 렌더러에 상태를 전달합니다.
+   */
+  private registerUiEventHooks(): void {
+    if (!uiServer.isActive()) return;
+
+    // BriefingRunner: 브리핑 시작/종료 → UI 상태 전환
+    this.briefingRunner.on('start', () => {
+      uiServer.emit('state-change', 'briefing');
+    });
+    this.briefingRunner.on('end', () => {
+      uiServer.emit('state-change', 'idle');
+    });
+
+    // SessionManager: 세션 상태 변경 → UI 상태 매핑
+    this.sessionManager.on('stateChange', (state: string) => {
+      const uiState = this.mapSessionState(state);
+      uiServer.emit('state-change', uiState);
+    });
+
+    // TtsManager (SessionManager 내부): AI 발화 텍스트 전달
+    this.sessionManager.on('speak', (text: string) => {
+      uiServer.emit('ai-text', text);
+    });
+
+    // SttManager: 사용자 발화 텍스트 전달
+    this.sessionManager.on('transcript', (payload: { text: string; final: boolean }) => {
+      uiServer.emit(
+        payload.final ? 'user-text-final' : 'user-text',
+        payload.text,
+      );
+    });
+  }
+
+  /** SessionState → UI 상태 매핑 */
+  private mapSessionState(state: string): string {
+    switch (state) {
+      case 'listening': return 'session-listening';
+      case 'processing':
+      case 'speaking': return 'session-speaking';
+      case 'ending':
+      case 'idle':
+      default: return 'idle';
+    }
   }
 
   // ── 내부: 시그널 핸들러 ───────────────────────────────────────

@@ -2,6 +2,7 @@
 //  Valet Pilot — STT 오케스트레이터
 // ────────────────────────────────────────────────────────────────
 
+import { EventEmitter } from 'node:events';
 import { loadConfig } from '../config/manager.js';
 import { transcribe as whisperTranscribe, WhisperNotInstalledError } from './whisper.js';
 import { transcribe as googleTranscribe } from './google.js';
@@ -25,7 +26,7 @@ export interface SttResult {
 
 // ── SttManager ───────────────────────────────────────────────────
 
-export class SttManager {
+export class SttManager extends EventEmitter {
   /**
    * 지정한 오디오 파일을 변환합니다.
    *
@@ -68,6 +69,7 @@ export class SttManager {
    * @returns       SttResult
    */
   async transcribeMic(options?: SttOptions): Promise<SttResult> {
+    this.emit('listening-start');
     startRecording();
 
     let audioPath: string;
@@ -79,6 +81,7 @@ export class SttManager {
 
     try {
       const result = await this.transcribeFile(audioPath, options);
+      this.emit('transcript', { text: result.text, final: true });
       return result;
     } finally {
       // 보안 원칙: 처리 완료 후 임시 오디오 파일 즉시 삭제

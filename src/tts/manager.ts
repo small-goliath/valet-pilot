@@ -3,6 +3,7 @@
 //  캐시 확인 → Edge TTS → ElevenLabs fallback → 에러 시 console.log
 // ────────────────────────────────────────────────────────────────
 
+import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
 import { loadConfig } from '../config/manager.js';
 import { ensureValetDirs, VALET_DIRS } from '../utils/dirs.js';
@@ -15,7 +16,7 @@ import type { VoiceId } from '../types/tts.js';
 
 // ── TtsManager ──────────────────────────────────────────────────
 
-export class TtsManager {
+export class TtsManager extends EventEmitter {
   private defaultVoice: VoiceId = 'female-01';
   private defaultLanguage: string = 'korean';
   private defaultDialect: string | undefined;
@@ -44,6 +45,7 @@ export class TtsManager {
    * @param options TTS 옵션 (생략 시 config 기본값 사용)
    */
   async speak(text: string, options?: TtsOptions): Promise<void> {
+    this.emit('speak-start', { text });
     try {
       const result = await this.synthesize(text, options);
       await play(result.audioPath);
@@ -51,6 +53,8 @@ export class TtsManager {
       const message = err instanceof Error ? err.message : String(err);
       console.log(`[TTS 실패] ${text}`);
       console.error(`TTS 오류: ${message}`);
+    } finally {
+      this.emit('speak-end', { text });
     }
   }
 

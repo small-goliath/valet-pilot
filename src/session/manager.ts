@@ -38,6 +38,15 @@ export class SessionManager extends EventEmitter {
     this.stt = new SttManager();
     this.tts = new TtsManager();
     this.history = new HistoryManager();
+
+    // STT/TTS 이벤트를 SessionManager로 중계하여 UI 이벤트 라우팅에 활용
+    this.stt.on('listening-start', () => this.emit('listening-start'));
+    this.stt.on('transcript', (payload: { text: string; final: boolean }) =>
+      this.emit('transcript', payload),
+    );
+    this.tts.on('speak-start', (payload: { text: string }) =>
+      this.emit('speak', payload.text),
+    );
   }
 
   // ── 공개 API ──────────────────────────────────────────────────
@@ -244,6 +253,7 @@ export class SessionManager extends EventEmitter {
   private setState(state: SessionState): void {
     if (!this.session) return;
     this.session.state = state;
+    this.emit('stateChange', state);
   }
 
   // ── 내부: 턴 관리 ────────────────────────────────────────────
