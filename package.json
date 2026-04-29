@@ -8,10 +8,14 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "build:ui": "electron-vite build",
+    "build:all": "npm run build && npm run build:ui",
     "dev": "tsx src/cli.ts",
+    "dev:ui": "electron-vite dev",
     "start": "node dist/cli.js",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
+    "package": "npm run build:all && electron-builder",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "dependencies": {
@@ -23,17 +27,28 @@
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "dotenv": "^16.5.0",
+    "electron": "^41.3.0",
     "fast-xml-parser": "^5.7.2",
     "js-yaml": "^4.1.0",
     "node-record-lpcm16": "^1.0.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
     "eslint": "^9.26.0",
     "prettier": "^3.5.3",
+    "tailwindcss": "^4.2.4",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^8.0.10"
   }
 }
