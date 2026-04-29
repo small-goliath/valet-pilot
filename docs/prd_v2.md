@@ -132,25 +132,26 @@ macOS 네이티브 메뉴바 (Electron 기본)
 
 ### 앱 프레임워크
 
-- **Electron 36** (최신 안정 버전) — macOS 네이티브 앱 창, always on top, IPC, 프로세스 관리
-- **기존 Node.js 24 + TypeScript 5.6 ESM 코드베이스와 동일 런타임**
+- **Electron 41** (최신 안정 버전, 41.3.0) — macOS 네이티브 앱 창, always on top, IPC, 프로세스 관리
+- **기존 Node.js 24 + TypeScript 5.6 ESM 코드베이스와 동일 런타임** (Electron 28+에서 ESM 지원)
 
 ### 렌더러 UI
 
 - **React 19** — 렌더러 프로세스 UI 라이브러리
-- **TailwindCSS v4** (설정 파일 없는 새로운 CSS 엔진) — 유틸리티 CSS
+- **TailwindCSS v4** (`@tailwindcss/vite` 플러그인, PostCSS 설정 불필요) — 유틸리티 CSS
 - 캐릭터 애니메이션: CSS keyframes 기반 (별도 애니메이션 라이브러리 없이 구현 가능)
-- 번들러: **Vite 6** (Electron + Vite 템플릿 활용)
+- 번들러: **electron-vite** (Vite 8 기반 Electron 전용 템플릿, ESM + preload 지원)
 
 ### IPC / 프로세스 통신
 
-- **Unix Domain Socket** (`~/.valet-pilot/ui.sock`) — 기존 데몬 코드 변경 최소화. 데몬은 소켓 파일에 JSON 이벤트를 write, Electron main process가 net.createConnection으로 구독
-- **Electron ipcMain / ipcRenderer** — main ↔ renderer 간 이벤트 중계
+- **Unix Domain Socket** (`~/.valet-pilot/ui.sock`) — 기존 데몬 코드 변경 최소화. 데몬은 소켓 파일에 JSON 이벤트를 write, Electron main process가 `net.createConnection`으로 구독
+  - `~` 틸데는 Node.js에서 자동 확장되지 않으므로 `os.homedir()`로 절대 경로 생성
+- **Electron ipcMain / ipcRenderer** — main ↔ renderer 간 이벤트 중계 (`webContents.send` + `ipcRenderer.on` 패턴)
 
 ### 빌드 및 패키징
 
 - **electron-builder** — macOS .app 패키지 생성
-- `valet-pilot start` 실행 시 electron 프로세스를 child_process.spawn으로 실행하는 방식으로 기존 CLI 구조 유지
+- `valet-pilot start` 실행 시 `require('electron')` 반환값(바이너리 경로)으로 electron 프로세스를 `child_process.spawn`하여 기존 CLI 구조 유지
 
 ---
 
@@ -162,12 +163,43 @@ macOS 네이티브 메뉴바 (Electron 기본)
 
 ```
 valet-pilot start
-├── (기존) Daemon.start() — 트리거/브리핑/세션 실행
-├── (신규) UIServer.start() — Unix socket 서버 생성 (~/.valet-pilot/ui.sock)
-└── (신규) electron 프로세스 spawn — 앱 창 열기
+├── 1. UIServer.start()      — Unix socket 서버 생성 (LISTEN 상태 확보)
+├── 2. Daemon.start()        — 트리거/브리핑/세션 실행
+└── 3. electron spawn        — UIServer 준비 완료 후 앱 창 열기
 ```
 
+> **시작 순서 보장**: UIServer가 LISTEN 상태가 된 이후에 electron을 spawn해야 연결 경합 조건을 방지할 수 있습니다. Electron main process 측에도 연결 실패 시 100ms 간격 최대 10회 재시도 로직을 추가합니다.
+
 데몬 내부에서 상태 변경이 발생하는 시점(브리핑 시작, TTS 텍스트 전달, STT 결과 수신, 세션 종료 등)에 UIServer를 통해 UIEvent를 소켓에 write합니다. Electron은 소켓을 구독하고 있다가 이벤트를 수신하면 ipcMain을 통해 렌더러로 전달합니다.
+
+### TTS / STT 이벤트 훅
+
+F103(AI 자막), F104(사용자 자막)를 구현하려면 `TtsManager`와 `SttManager`가 UI에 텍스트를 전달할 수 있어야 합니다. 현재 두 클래스는 이벤트 발행 메커니즘이 없으므로 다음과 같이 확장합니다.
+
+**TtsManager 변경** (`src/tts/manager.ts`):
+- `EventEmitter`를 상속하여 `speak()` 진입 시 `'speak-start'` 이벤트, 완료 시 `'speak-end'` 이벤트 발행
+- 이벤트 페이로드: `{ text: string }`
+
+**SttManager 변경** (`src/stt/manager.ts`):
+- `transcribeMic()` 호출 시작 시 `'listening-start'` 이벤트 발행
+- 인식 완료 시 `'transcript'` 이벤트 발행
+- 이벤트 페이로드: `{ text: string, final: boolean }`
+
+**Daemon 이벤트 라우팅**:
+- `Daemon`이 `TtsManager` / `SttManager` 이벤트를 구독하여 `UIServer.emit(UIEvent)`로 전달
+
+### SessionState → UI 상태 매핑
+
+현재 코드의 `SessionState`와 PRD UI 상태의 매핑 테이블:
+
+| SessionState (현재 코드) | UI 상태 (PRD) | 캐릭터 애니메이션 |
+|------------------------|--------------|----------------|
+| `idle` (데몬 대기 중) | `idle` | 호흡 효과 (느린 pulse) |
+| `listening` (STT 녹음 중) | `session-listening` | 느린 맥박 효과 |
+| `processing` (AI 응답 생성 중) | `session-speaking` | 파동/글로우 효과 |
+| `speaking` (TTS 재생 중) | `session-speaking` | 파동/글로우 효과 |
+| `ending` (세션 종료 중) | `idle` | 호흡 효과로 전환 |
+| (브리핑 중, Daemon 이벤트) | `briefing` | 파동/글로우 효과 |
 
 ### UI 선택 조건
 
