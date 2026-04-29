@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import chalk from 'chalk';
 import { loadConfig } from '../config/manager.js';
 import { briefingCache } from '../cache/briefing.js';
+import { InterestRegistry } from '../interests/registry.js';
 import { ttsManager } from '../tts/manager.js';
 import * as player from '../tts/player.js';
 import type { BgmConfig } from '../types/config.js';
@@ -63,6 +64,7 @@ export class BriefingRunner {
 
   /** dry/noTts 모드일 때 텍스트 출력, 아닐 때 TTS 재생 */
   private async _speak(text: string): Promise<void> {
+    if (!text?.trim()) return;
     if (this._opts.dry || this._opts.noTts) {
       console.log(chalk.cyan(`[TTS] ${text}`));
       return;
@@ -195,14 +197,26 @@ export class BriefingRunner {
 
   private async _playOneReport(interest: Interest): Promise<void> {
     const label = interest.name ?? interest.type;
-    const cachedEntry = await briefingCache.get(interest.type);
+    let cachedEntry = await briefingCache.get(interest.type);
 
+    // 캐시 미스 시 실시간 fetch (dry 모드 또는 데몬 미실행 상황 대응)
     if (!cachedEntry) {
+      try {
+        const registry = new InterestRegistry();
+        const reports = await registry.fetchAll();
+        const report = reports.find((r) => r.type === interest.type);
+        if (report?.summary) {
+          await this._speak(report.summary);
+          return;
+        }
+      } catch {
+        // fetch 실패 시 fallback 메시지로 계속
+      }
       await this._speak(`${label} 정보를 가져오지 못했습니다.`);
       return;
     }
 
-    const summary = cachedEntry.data.summary ?? `${label} 리포트입니다.`;
+    const summary = cachedEntry.data.summary || `${label} 정보를 가져오지 못했습니다.`;
 
     // tts_audio_path 가 있고 파일이 존재하면 직접 재생 (dry 모드 제외)
     if (!this._opts.dry && cachedEntry.tts_audio_path && existsSync(cachedEntry.tts_audio_path)) {

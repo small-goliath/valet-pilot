@@ -98,6 +98,7 @@ async function interactiveConfig(): Promise<void> {
     message: '설정할 항목을 선택하세요:',
     choices: [
       { name: 'AI 에이전트 설정', value: 'agent' },
+      { name: 'API 키 설정', value: 'secrets' },
       { name: '트리거 설정', value: 'trigger' },
       { name: '관심사 설정', value: 'interests' },
       { name: 'BGM 설정', value: 'bgm' },
@@ -116,6 +117,9 @@ async function interactiveConfig(): Promise<void> {
   switch (category) {
     case 'agent':
       await configureAgent(config);
+      break;
+    case 'secrets':
+      await configureSecrets();
       break;
     case 'trigger':
       await configureTrigger(config);
@@ -195,6 +199,47 @@ async function configureAgent(config: ValetConfig): Promise<void> {
 
   await saveConfig(config);
   console.log(chalk.green('\nAI 에이전트 설정이 저장되었습니다.'));
+}
+
+// ── API 키 설정 ───────────────────────────────────────────────
+
+const SECRET_ACCOUNTS: Array<{ label: string; account: string }> = [
+  { label: 'Moonshot API Key (kimi-k2.5)', account: 'kimi-api-key' },
+  { label: 'Anthropic API Key (claude)', account: 'claude-api-key' },
+  { label: 'OpenAI API Key (gpt)', account: 'openai-api-key' },
+  { label: 'Google Gemini API Key (gemini)', account: 'gemini-api-key' },
+  { label: 'OpenWeatherMap API Key (날씨)', account: 'openweathermap-api-key' },
+  { label: 'Redmine API Key', account: 'redmine-api-key' },
+];
+
+async function configureSecrets(): Promise<void> {
+  console.log(chalk.bold('\nAPI 키 설정\n'));
+
+  const choices = [
+    ...SECRET_ACCOUNTS.map((s) => ({ name: s.label, value: s.account })),
+    { name: '뒤로 가기', value: 'back' },
+  ];
+
+  const account = await select({
+    message: '갱신할 API 키를 선택하세요:',
+    choices,
+  });
+
+  if (account === 'back') return;
+
+  const selected = SECRET_ACCOUNTS.find((s) => s.account === account)!;
+  const newKey = await password({
+    message: `${selected.label} (입력 내용은 화면에 표시되지 않습니다):`,
+    mask: '*',
+  });
+
+  if (!newKey) {
+    console.log(chalk.yellow('입력하지 않았습니다. 기존 값이 유지됩니다.'));
+    return;
+  }
+
+  await setSecret(KEYCHAIN_SERVICE, account, newKey);
+  console.log(chalk.green(`${selected.label}가 Keychain에 저장되었습니다.`));
 }
 
 // ── 트리거 설정 ───────────────────────────────────────────────
@@ -336,6 +381,11 @@ async function addInterest(config: ValetConfig): Promise<void> {
 
   if (interestType === 'weather') {
     const location = await input({ message: '날씨 조회 지역:', default: '서울' });
+    const weatherKey = await password({ message: 'OpenWeatherMap API Key:', mask: '*' });
+    if (weatherKey) {
+      await setSecret(KEYCHAIN_SERVICE, 'openweathermap-api-key', weatherKey);
+      console.log(chalk.green('  OpenWeatherMap API 키가 Keychain에 저장되었습니다.'));
+    }
     const newInterest: Interest = { type: 'weather', name: '날씨', location };
     config.interests.push(newInterest);
     return;
